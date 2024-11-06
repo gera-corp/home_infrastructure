@@ -1,0 +1,31 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mem-test-limit
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mem-test-limit
+  template:
+    metadata:
+      labels:
+        app: mem-test-limit
+    spec:
+      containers:
+        - name: mem-test-limit
+          image: valentinomiazzo/jvm-memory-test
+          imagePullPolicy: "IfNotPresent"
+          resources:
+            limits:
+              memory: "128Mi"
+              cpu: "500m"
+          env:
+          - name: ALLOC_HEAP_MB
+            value: "50"
+          - name: MAX_HEAP_SIZE_MB
+            value: "100000"
+      nodeName: node-k8s-01
+
+

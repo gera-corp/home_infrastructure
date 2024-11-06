@@ -1,0 +1,12 @@
+global:
+  prometheus:
+    enabled: false
+    fqdn: http://kube-prometheus-stack-prometheus.prometheus.svc:9090
+prometheusRule:
+  enabled: true
+  
+serviceMonitor:
+  enabled: true
+  networkCosts:
+    enabled: true
+kubecostToken: "bmV1bXl2YXlraW4uYWxleGFuZGVyQDF3aW4ucHJvxm343yadf98"

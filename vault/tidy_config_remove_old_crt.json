@@ -1,0 +1,5 @@
+{
+    "enabled": true,
+    "tidy_revoked_cert_issuer_associations": true,
+    "safety_buffer": "24h"
+}

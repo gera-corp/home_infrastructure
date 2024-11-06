@@ -1,0 +1,14 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: wildcard-home-local-crt
+  namespace: traefik
+spec:
+  secretName: letsencrypt-cloud-production-tls
+  issuerRef:
+    name: letsencrypt-cloud-production
+    kind: ClusterIssuer
+  commonName: "*.local.geracorp.work"
+  dnsNames:
+  - "geracorp.work"
+  - "*.local.geracorp.work"

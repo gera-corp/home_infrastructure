@@ -1,0 +1,16 @@
+replicaCount: 2
+
+env:
+  VAULT_ADDR: "https://vault-cluster.local.geracorp.work"
+  VAULT_ROLE: "default"
+  VAULT_PATH: "kubernetes"
+  VAULT_SKIP_VERIFY: "true"
+  ENABLE_JSON_LOG: "true"
+  RUN_AS_NON_ROOT: "true"
+  RUN_AS_USER: "1000"
+
+configMapMutation: true
+secretsMutation: true
+
+podDisruptionBudget:
+  enabled: false

@@ -1,0 +1,8 @@
+loki:
+  overrideConfiguration:
+    storage_config:
+      aws:
+        s3: "https://lzpA5lF3ROD1jDyq7mJ9:46THNOchK56doL47VM2P1lThgF8frjk0RocceK6W@api-minio.local.geracorp.work"
+        bucketnames: "loki"
+queryFrontend:
+  resourcesPreset: "small"

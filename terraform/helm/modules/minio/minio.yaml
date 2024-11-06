@@ -1,0 +1,26 @@
+ingress:
+  enabled: true
+  ingressClassName: "traefik"
+  hostname: minio.local.geracorp.work
+  path: /
+  servicePort: minio-console
+  tls: true
+apiIngress:
+  enabled: true
+  ingressClassName: "traefik"
+  hostname: api-minio.local.geracorp.work
+  path: /
+  servicePort: minio-api
+  tls: true
+  # path: /.*/.*
+  # annotations:
+  #   traefik.http.services.minio.loadbalancer.server.scheme: https
+podAnnotations:
+  prometheus.io/scrape: "true"
+  prometheus.io/path: "/minio/v2/metrics/cluster"
+  prometheus.io/port: "9000"
+extraEnvVars:
+  - name: MINIO_SERVER_URL
+    value: "https://api-minio.local.geracorp.work"
+  - name: MINIO_BROWSER_REDIRECT_URL
+    value: "https://minio.local.geracorp.work"

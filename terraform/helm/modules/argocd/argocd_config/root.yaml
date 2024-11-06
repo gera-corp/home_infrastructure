@@ -1,0 +1,27 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: home-lab
+  namespace: argocd
+  finalizers:
+  - resources-finalizer.argocd.argoproj.io
+  annotations:
+    notifications.argoproj.io/subscribe.on-sync-succeeded.telegram: "-1002050227160" #group or channel id
+    notifications.argoproj.io/subscribe.on-sync-failed.telegram: "-1002050227160"
+    notifications.argoproj.io/subscribe.on-health-degraded.telegram: "-1002050227160"
+    notifications.argoproj.io/subscribe.on-deployed.telegram: "-1002050227160"
+spec:
+  destination:
+    name: in-cluster
+    namespace: argocd
+  source:
+    plugin:
+      name: argocd-vault-plugin
+    repoURL: "${repoURL}"
+    path: "${path}"
+    targetRevision: "${targetRevision}"
+  project: default
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true

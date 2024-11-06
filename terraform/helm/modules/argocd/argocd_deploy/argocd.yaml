@@ -1,0 +1,179 @@
+repoServer:
+  rbac:
+    - verbs:
+        - get
+        - list
+        - watch
+      apiGroups:
+        - ''
+      resources:
+        - secrets
+        - configmaps
+  initContainers:
+    - name: download-tools
+      image: registry.access.redhat.com/ubi8
+      env:
+        - name: AVP_VERSION
+          value: ${avp_version}
+      command: [sh, -c]
+      args:
+        - >-
+          curl -L https://github.com/argoproj-labs/argocd-vault-plugin/releases/download/v$(AVP_VERSION)/argocd-vault-plugin_$(AVP_VERSION)_linux_amd64 -o argocd-vault-plugin &&
+          chmod +x argocd-vault-plugin &&
+          mv argocd-vault-plugin /custom-tools/
+      volumeMounts:
+        - mountPath: /custom-tools
+          name: custom-tools
+
+  extraContainers:
+    # argocd-vault-plugin with plain YAML
+    - name: avp
+      command: [/var/run/argocd/argocd-cmp-server]
+      image: quay.io/argoproj/argocd:${avp_image_version_tag}
+      env:
+        - name: VAULT_SKIP_VERIFY
+          value: "true"
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 999
+      volumeMounts:
+        - mountPath: /var/run/argocd
+          name: var-files
+        - mountPath: /home/argocd/cmp-server/plugins
+          name: plugins
+        - mountPath: /tmp
+          name: tmp
+
+        # Register plugins into sidecar
+        - mountPath: /home/argocd/cmp-server/config/plugin.yaml
+          subPath: avp.yaml
+          name: cmp-plugin
+
+        # Important: Mount tools into $PATH
+        - name: custom-tools
+          subPath: argocd-vault-plugin
+          mountPath: /usr/local/bin/argocd-vault-plugin
+
+    - name: avp-helm
+      command: [/var/run/argocd/argocd-cmp-server]
+      image: quay.io/argoproj/argocd:${avp_image_version_tag}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 999
+      volumeMounts:
+        - mountPath: /var/run/argocd
+          name: var-files
+        - mountPath: /home/argocd/cmp-server/plugins
+          name: plugins
+        - mountPath: /tmp
+          name: tmp
+        - mountPath: /home/argocd/cmp-server/config/plugin.yaml
+          subPath: avp-helm.yaml
+          name: cmp-plugin
+        - name: custom-tools
+          subPath: argocd-vault-plugin
+          mountPath: /usr/local/bin/argocd-vault-plugin
+
+  volumes:
+    - configMap:
+        name: cmp-plugin
+      name: cmp-plugin
+    - name: custom-tools
+      emptyDir: {}
+
+notifications:
+  # -- Enable notifications controller
+  enabled: true
+
+  # -- Notifications controller name string
+  name: notifications-controller
+
+  # -- Argo CD dashboard url; used in place of {{.context.argocdUrl}} in templates
+  # @default -- `""` (defaults to https://`global.domain`)
+  argocdUrl: "https://argocd.local.geracorp.work"
+  secret:
+    create: true
+    name: "argocd-notifications-secret"
+    items:
+      telegram-token: "7106993955:AAEybUSBPxC4vQdNOrRVM-sqncgZcwjST8M"
+  logFormat: "json"
+  logLevel: "info"
+  notifiers:
+      service.telegram: |
+        token: $telegram-token
+  templates:
+      template.app-deployed: |
+        message: |
+          Application {{.app.metadata.name}} is now running new version of deployments manifests.
+      template.app-health-degraded: |
+        message: |
+          Application {{.app.metadata.name}} has degraded.
+          Application details: {{.context.argocdUrl}}/applications/{{.app.metadata.name}}.
+      template.app-sync-failed: |
+        message: |
+          The sync operation of application {{.app.metadata.name}} has failed at {{.app.status.operationState.finishedAt}} with the following error: {{.app.status.operationState.message}}
+          Sync operation details are available at: {{.context.argocdUrl}}/applications/{{.app.metadata.name}}?operation=true .
+
+      template.app-sync-running: |
+        message: |
+          The sync operation of application {{.app.metadata.name}} has started at {{.app.status.operationState.startedAt}}.
+          Sync operation details are available at: {{.context.argocdUrl}}/applications/{{.app.metadata.name}}?operation=true .
+
+      template.app-sync-status-unknown: |
+        message: |
+          Application {{.app.metadata.name}} sync is 'Unknown'.
+          Application details: {{.context.argocdUrl}}/applications/{{.app.metadata.name}}.
+          {{if ne .serviceType "slack"}}
+          {{range $c := .app.status.conditions}}
+              * {{$c.message}}
+          {{end}}
+          {{end}}
+
+      template.app-sync-succeeded: |
+        message: |
+          Application {{.app.metadata.name}} has been successfully synced at {{.app.status.operationState.finishedAt}}.
+          Sync operation details are available at: {{.context.argocdUrl}}/applications/{{.app.metadata.name}}?operation=true .
+  triggers:
+        trigger.on-created: |
+          - description: Application is created.
+            oncePer: app.metadata.name
+            send:
+            - app-created
+            when: "true"
+        trigger.on-deleted: |
+          - description: Application is deleted.
+            oncePer: app.metadata.name
+            send:
+            - app-deleted
+            when: app.metadata.deletionTimestamp != nil
+        trigger.on-deployed: |
+          - description: Application is synced and healthy. Triggered once per commit.
+            oncePer: app.status.sync.revision
+            send:
+            - app-deployed
+            when: app.status.operationState.phase in ['Succeeded'] and app.status.health.status == 'Healthy'
+        trigger.on-health-degraded: |
+          - description: Application has degraded
+            send:
+            - app-health-degraded
+            when: app.status.health.status == 'Degraded'
+        trigger.on-sync-failed: |
+          - description: Application syncing has failed
+            send:
+            - app-sync-failed
+            when: app.status.operationState.phase in ['Error', 'Failed']
+        trigger.on-sync-running: |
+          - description: Application is being synced
+            send:
+            - app-sync-running
+            when: app.status.operationState.phase in ['Running']
+        trigger.on-sync-status-unknown: |
+          - description: Application status is 'Unknown'
+            send:
+            - app-sync-status-unknown
+            when: app.status.sync.status == 'Unknown'
+        trigger.on-sync-succeeded: |
+          - description: Application syncing has succeeded
+            send:
+            - app-sync-succeeded
+            when: app.status.operationState.phase in ['Succeeded']

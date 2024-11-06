@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: vault-configuration
+  namespace: argocd
+stringData:
+  VAULT_ADDR: http://vault.service.consul:8200
+  AVP_TYPE: vault
+  AVP_AUTH_TYPE: token
+  VAULT_TOKEN: hvs.CAESIJz9p0EyPIvgHl06INlIKshNP5gbfLdqSHQjoudeSQ8RGh4KHGh2cy5ZSjROWmdjR2JnTDVDOWVWMnZSb2o0RW4
+type: Opaque
